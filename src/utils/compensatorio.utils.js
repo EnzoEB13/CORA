@@ -1,4 +1,5 @@
 function textoAmediosDias(texto) {
+
   const valor = texto
     .trim()
     .toLowerCase()
@@ -7,7 +8,35 @@ function textoAmediosDias(texto) {
     .replace(/\s+/g, " ");
 
   // ====================================================
-  // CASOS ESPECIALES
+  // SIN COMPENSATORIO
+  // ====================================================
+  //
+  // Ejemplos:
+  //
+  // 0
+  // 0 dia
+  // 0 dias
+  // sin compensatorio
+  // ninguno
+  // ninguna
+  // no
+  //
+  // ====================================================
+
+  if (
+    valor === "0" ||
+    valor === "0 dia" ||
+    valor === "0 dias" ||
+    valor === "sin compensatorio" ||
+    valor === "ninguno" ||
+    valor === "ninguna" ||
+    valor === "no"
+  ) {
+    return 0;
+  }
+
+  // ====================================================
+  // MEDIO DÍA
   // ====================================================
 
   if (
@@ -49,9 +78,12 @@ function textoAmediosDias(texto) {
   );
 
   if (match) {
+
     const dias = Number(match[1]);
 
-    if (dias <= 0) return null;
+    if (dias < 0) {
+      return null;
+    }
 
     return dias * 2;
   }
@@ -69,7 +101,9 @@ function textoAmediosDias(texto) {
   );
 
   if (match) {
-    const dias = numerosEnPalabras[match[1]];
+
+    const dias =
+      numerosEnPalabras[match[1]];
 
     return dias * 2;
   }
@@ -87,9 +121,12 @@ function textoAmediosDias(texto) {
   );
 
   if (match) {
+
     const dias = Number(match[1]);
 
-    if (dias <= 0) return null;
+    if (dias < 0) {
+      return null;
+    }
 
     return dias * 2 + 1;
   }
@@ -107,7 +144,9 @@ function textoAmediosDias(texto) {
   );
 
   if (match) {
-    const dias = numerosEnPalabras[match[1]];
+
+    const dias =
+      numerosEnPalabras[match[1]];
 
     return dias * 2 + 1;
   }
@@ -117,6 +156,7 @@ function textoAmediosDias(texto) {
 
 
 function mediosDiasATexto(cantidad) {
+
   if (cantidad === 0) {
     return "sin compensatorio";
   }
