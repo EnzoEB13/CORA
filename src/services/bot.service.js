@@ -1624,63 +1624,109 @@ if (
 
 
   // ======================================================
-  // CONFIRMAR ASIGNACIÓN
-  // ======================================================
+// CONFIRMAR ASIGNACIÓN
+// ======================================================
 
-  if (
-    textoNormalizado ===
-      "confirmar asignación" ||
-    textoNormalizado ===
-      "confirmar asignacion"
-  ) {
+if (
+  textoNormalizado === "confirmar asignación" ||
+  textoNormalizado === "confirmar asignacion"
+) {
 
-    const pendiente =
-      asignacionesPendientes.get(numero);
+  const pendiente =
+    asignacionesPendientes.get(numero);
 
-    if (!pendiente) {
-
-      return (
-        "⚠️ No hay ninguna asignación pendiente " +
-        "para confirmar."
-      );
-
-    }
-
-    const actividad =
-      await guardarAsignacion(
-        pendiente.actividadId,
-        pendiente.sugeridos
-      );
-
-    asignacionesPendientes.delete(
-      numero
-    );
-
-    reemplazosExcepcionalesPendientes.delete(
-      numero
-    );
-
-    const actividadCompleta =
-      await buscarActividadPorId(
-        actividad._id
-      );
-
-    const lista =
-      actividadCompleta.personas
-        .map(
-          (item, index) =>
-            `${index + 1}. ${item.persona.nombre} ${item.persona.apellido}`
-        )
-        .join("\n");
+  if (!pendiente) {
 
     return (
-      "✅ Asignación confirmada\n\n" +
-      `📌 ${actividadCompleta.nombre}\n\n` +
-      "👥 Personal asignado:\n" +
-      lista
+      "⚠️ No hay ninguna asignación pendiente " +
+      "para confirmar."
     );
 
   }
+
+  const actividad =
+    await guardarAsignacion(
+      pendiente.actividadId,
+      pendiente.sugeridos
+    );
+
+  asignacionesPendientes.delete(numero);
+
+  reemplazosExcepcionalesPendientes.delete(numero);
+
+  const actividadCompleta =
+    await buscarActividadPorId(
+      actividad._id
+    );
+
+  const lista =
+    actividadCompleta.personas
+      .map(
+        (item, index) =>
+          `${index + 1}. ${item.persona.nombre} ${item.persona.apellido}`
+      )
+      .join("\n");
+
+  // ====================================================
+  // FECHA DE LA ACTIVIDAD
+  // ====================================================
+
+  const fecha =
+    new Date(actividadCompleta.fecha);
+
+  const fechaTexto =
+    `${fecha.getDate()}/` +
+    `${fecha.getMonth() + 1}/` +
+    `${fecha.getFullYear()}`;
+
+  // ====================================================
+  // LISTA PARA MENSAJE DE CONVOCATORIA
+  // ====================================================
+
+  const personalConvocado =
+    actividadCompleta.personas
+      .map(
+        item =>
+          `• ${item.persona.nombre} ${item.persona.apellido}`
+      )
+      .join("\n");
+
+  // ====================================================
+  // MENSAJE 1 - CONFIRMACIÓN PARA LA JEFA
+  // ====================================================
+
+  const mensajeConfirmacion =
+    "✅ Asignación confirmada\n\n" +
+    `📌 ${actividadCompleta.nombre}\n\n` +
+    "👥 Personal asignado:\n" +
+    lista;
+
+  // ====================================================
+  // MENSAJE 2 - LISTO PARA COPIAR Y REENVIAR
+  // ====================================================
+
+  const mensajeConvocatoria =
+    "📢 *ACTIVIDAD PROGRAMADA*\n\n" +
+
+    `📌 *Actividad:* ${actividadCompleta.nombre}\n` +
+    `📅 *Fecha:* ${fechaTexto}\n` +
+    `📍 *Lugar:* ${actividadCompleta.lugar}\n` +
+    `🗺️ *Ubicación:* \n` +
+    `🕐 *Hora:* \n\n` +
+
+    "👥 *Personal convocado:*\n" +
+    personalConvocado +
+    "\n\n" +
+
+    "⚠️ Por favor, presentarse con puntualidad en el horario indicado.\n\n" +
+    "Ante cualquier inconveniente para asistir, comunicarlo con anticipación.";
+
+  return [
+    mensajeConfirmacion,
+    mensajeConvocatoria
+  ];
+
+}
 
 
   // ======================================================

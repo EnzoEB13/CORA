@@ -308,19 +308,36 @@ if (message.type !== "text") {
     console.log("Texto:", texto);
 
     const respuesta =
-      await procesarMensaje(
-        texto,
-        numero
-      );
+  await procesarMensaje(
+    texto,
+    numero
+  );
 
-    if (!respuesta) {
-      return;
-    }
+if (!respuesta) {
+  return;
+}
+
+// Si CORA devuelve varios mensajes,
+// los enviamos uno por uno.
+if (Array.isArray(respuesta)) {
+
+  for (const mensaje of respuesta) {
 
     await enviarMensaje(
       numero,
-      respuesta
+      mensaje
     );
+
+  }
+
+  return;
+}
+
+// Respuesta normal de un solo mensaje
+await enviarMensaje(
+  numero,
+  respuesta
+);
 
   } catch (error) {
     console.error(
