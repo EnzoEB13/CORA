@@ -419,26 +419,31 @@ async function procesarMensaje(texto, numero) {
       .replace(/^crear actividad/i, "")
       .trim();
 
+    // Acepta formato largo y corto:
+    // fecha / F
+    // jurisdiccion / J
+    // lugar / L
+    // personas / P
+    // compensatorio / T (tiempo)
+
     const lineaFecha = lineas.find(l =>
-      l.toLowerCase().startsWith("fecha ")
+      /^(fecha|f)\s+/i.test(l)
     );
 
-    const lineaJurisdiccion = lineas.find(
-      l =>
-        l.toLowerCase().startsWith("jurisdiccion ") ||
-        l.toLowerCase().startsWith("jurisdicción ")
+    const lineaJurisdiccion = lineas.find(l =>
+      /^(jurisdicci[oó]n|j)\s+/i.test(l)
     );
 
     const lineaLugar = lineas.find(l =>
-      l.toLowerCase().startsWith("lugar ")
+      /^(lugar|l)\s+/i.test(l)
     );
 
     const lineaPersonas = lineas.find(l =>
-      l.toLowerCase().startsWith("personas ")
+      /^(personas|p)\s+/i.test(l)
     );
 
     const lineaCompensatorio = lineas.find(l =>
-      l.toLowerCase().startsWith("compensatorio ")
+      /^(compensatorio|t)\s+/i.test(l)
     );
 
     if (
@@ -452,13 +457,14 @@ async function procesarMensaje(texto, numero) {
 
       return (
         "Formato incorrecto.\n\n" +
-        "Ejemplo:\n\n" +
+        "Formato rápido:\n\n" +
         "Crear actividad Operativo San Francisco\n" +
-        "fecha 5/9/2026\n" +
-        "jurisdiccion 5\n" +
-        "lugar SUM San Francisco\n" +
-        "personas 4\n" +
-        "compensatorio 1 dia"
+        "F 5/9/26\n" +
+        "J 5\n" +
+        "L SUM San Francisco\n" +
+        "P 4\n" +
+        "T 1 dia\n\n" +
+        "También podés seguir usando Fecha, Jurisdicción, Lugar, Personas y Compensatorio."
       );
 
     }
@@ -467,7 +473,7 @@ async function procesarMensaje(texto, numero) {
     // FECHA
 
     const fechaTexto = lineaFecha
-      .replace(/^fecha /i, "")
+      .replace(/^(fecha|f)\s+/i, "")
       .trim();
 
     const partesFecha = fechaTexto.split("/");
@@ -476,14 +482,29 @@ async function procesarMensaje(texto, numero) {
 
       return (
         "⚠️ La fecha debe tener formato día/mes/año. " +
-        "Ejemplo: 5/9/2026"
+        "Ejemplo: F 5/9/26"
       );
 
     }
 
     const dia = Number(partesFecha[0]);
     const mes = Number(partesFecha[1]);
-    const anio = Number(partesFecha[2]);
+
+    const anioIngresado = partesFecha[2].trim();
+
+    if (!/^\d{2}$|^\d{4}$/.test(anioIngresado)) {
+
+      return (
+        "⚠️ El año debe tener 2 o 4 dígitos. " +
+        "Ejemplo: 26 o 2026"
+      );
+
+    }
+
+    const anio =
+      anioIngresado.length === 2
+        ? 2000 + Number(anioIngresado)
+        : Number(anioIngresado);
 
     const fecha = new Date(
       anio,
@@ -506,7 +527,7 @@ async function procesarMensaje(texto, numero) {
 
     const jurisdiccion = Number(
       lineaJurisdiccion
-        .replace(/^jurisdicci[oó]n /i, "")
+        .replace(/^(jurisdicci[oó]n|j)\s+/i, "")
         .trim()
     );
 
@@ -514,7 +535,7 @@ async function procesarMensaje(texto, numero) {
     // LUGAR
 
     const lugar = lineaLugar
-      .replace(/^lugar /i, "")
+      .replace(/^(lugar|l)\s+/i, "")
       .trim();
 
 
@@ -522,16 +543,16 @@ async function procesarMensaje(texto, numero) {
 
     const cantidadPersonas = Number(
       lineaPersonas
-        .replace(/^personas /i, "")
+        .replace(/^(personas|p)\s+/i, "")
         .trim()
     );
 
 
-    // COMPENSATORIO
+    // COMPENSATORIO / TIEMPO
 
     const compensatorioTexto =
       lineaCompensatorio
-        .replace(/^compensatorio /i, "")
+        .replace(/^(compensatorio|t)\s+/i, "")
         .trim();
 
     const compensatorioMediosDias =
@@ -572,10 +593,13 @@ async function procesarMensaje(texto, numero) {
       return (
         "⚠️ No entendí el compensatorio.\n\n" +
         "Podés escribir, por ejemplo:\n" +
-        "• medio dia\n" +
-        "• 1 dia\n" +
-        "• un dia y medio\n" +
-        "• 2 dias"
+        "• T 0\n" +
+        "• T 0 dias\n" +
+        "• T sin compensatorio\n" +
+        "• T medio dia\n" +
+        "• T 1 dia\n" +
+        "• T un dia y medio\n" +
+        "• T 2 dias"
       );
 
     }
@@ -3561,31 +3585,41 @@ if (
   // cuánto compensatorio tiene Enzo
   // ======================================================
 
-  if (
-    textoNormalizado.startsWith(
-      "cuanto compensatorio tiene "
-    )
-  ) {
+  const patronesConsultaCompensatorio = [
+  "cuanto compensatorio tiene ",
+  "cuantos compensatorios tiene ",
+  "cuanto compensatorios tiene ",
+  "cuantos compensatorio tiene ",
+  "cuanto tiempo tiene ",
+  "cuantos dias tiene ",
+  "cuanto tiene "
+];
 
-    const nombreIngresado =
-      texto
-        .trim()
-        .replace(
-          /^cu[aá]nto compensatorio tiene\s+/i,
-          ""
-        )
-        .trim();
+const patronConsultaCompensatorio =
+  patronesConsultaCompensatorio.find(
+    patron => textoNormalizado.startsWith(patron)
+  );
 
+if (patronConsultaCompensatorio) {
 
-    if (!nombreIngresado) {
+  const nombreIngresado =
+    texto
+      .trim()
+      .replace(
+        /^(cu[aá]nto(?:s)?\s+compensatorio(?:s)?\s+tiene|cu[aá]nto\s+tiempo\s+tiene|cu[aá]ntos\s+d[ií]as\s+tiene|cu[aá]nto\s+tiene)\s+/i,
+        ""
+      )
+      .trim();
 
-      return (
-        "⚠️ Tenés que indicar una persona.\n\n" +
-        "Ejemplo:\n" +
-        "cuanto compensatorio tiene Enzo"
-      );
-
-    }
+  if (!nombreIngresado) {
+    return (
+      "⚠️ Tenés que indicar una persona.\n\n" +
+      "Por ejemplo:\n" +
+      "• cuánto compensatorio tiene Enzo\n" +
+      "• cuántos compensatorios tiene Enzo\n" +
+      "• cuánto tiene Enzo"
+    );
+  }
 
 
     const busquedaPersona =
