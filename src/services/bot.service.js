@@ -3,7 +3,9 @@ const {
   listarPersonas,
   buscarPersonaPorNombre,
   buscarPersonaPorNombreCompleto,
-  buscarPersonasPorTexto
+  buscarPersonasPorTexto,
+  asignarTelefonoPersona,
+  quitarTelefonoPersona
 } = require("./persona.service");
 
 const {
@@ -375,6 +377,76 @@ async function procesarMensaje(texto, numero) {
 
   }
 
+
+  // ======================================================
+  // TELÉFONOS DEL PERSONAL (SOLO ADMINISTRADORES)
+  // ======================================================
+
+  if (textoNormalizado.startsWith("asignar telefono ")) {
+    const resto = texto.trim().replace(/^asignar tel[eé]fono\s+/i, "").trim();
+    const match = resto.match(/^(.*?)\s+(\+?\d[\d\s-]{7,})$/);
+
+    if (!match) {
+      return (
+        "⚠️ No entendí el formato.\n\n" +
+        "Ejemplo:\n" +
+        "asignar telefono Ivon Arce 5493704XXXXXX"
+      );
+    }
+
+    const nombreIngresado = match[1].trim();
+    const telefono = match[2].trim();
+    const busqueda = await buscarPersonasPorTexto(nombreIngresado);
+
+    if (busqueda.estado === "ninguna") {
+      return `⚠️ No encontré a “${nombreIngresado}”.`;
+    }
+
+    if (busqueda.estado === "multiple") {
+      const lista = busqueda.coincidencias
+        .map(p => `• ${p.nombre} ${p.apellido}`)
+        .join("\n");
+      return "🤔 Encontré más de una persona. Escribí el nombre más completo:\n\n" + lista;
+    }
+
+    const resultado = await asignarTelefonoPersona(busqueda.persona._id, telefono);
+
+    if (!resultado.ok) {
+      if (resultado.motivo === "telefono_en_uso") {
+        return (
+          "⚠️ Ese número ya está vinculado a:\n" +
+          `${resultado.persona.nombre} ${resultado.persona.apellido}`
+        );
+      }
+      return "⚠️ El número ingresado no es válido.";
+    }
+
+    return (
+      "📱 Número vinculado correctamente\n\n" +
+      `👤 ${resultado.persona.nombre} ${resultado.persona.apellido}\n` +
+      `📞 ${resultado.persona.telefonoWhatsapp}\n\n` +
+      "Ya puede escribirle a CORA para consultar su propio compensatorio."
+    );
+  }
+
+  if (textoNormalizado.startsWith("quitar telefono ")) {
+    const nombreIngresado = texto.trim().replace(/^quitar tel[eé]fono\s+/i, "").trim();
+    const busqueda = await buscarPersonasPorTexto(nombreIngresado);
+
+    if (busqueda.estado === "ninguna") return `⚠️ No encontré a “${nombreIngresado}”.`;
+    if (busqueda.estado === "multiple") {
+      const lista = busqueda.coincidencias.map(p => `• ${p.nombre} ${p.apellido}`).join("\n");
+      return "🤔 Encontré más de una persona:\n\n" + lista;
+    }
+
+    const resultado = await quitarTelefonoPersona(busqueda.persona._id);
+    if (!resultado.ok) return "⚠️ No pude quitar el número.";
+
+    return (
+      "📵 Número desvinculado\n\n" +
+      `👤 ${resultado.persona.nombre} ${resultado.persona.apellido}`
+    );
+  }
 
   // ======================================================
   // CREAR ACTIVIDAD
@@ -3875,9 +3947,69 @@ if (patronConsultaCompensatorio) {
 
 
 // ======================================================
+// MENSAJES DEL PERSONAL
+// Acceso deliberadamente limitado al saldo propio.
+// ======================================================
+
+async function procesarMensajePersonal(texto, persona) {
+  const textoNormalizado = normalizarTexto(texto);
+  const nombre = persona.nombre;
+
+  const saludos = [
+    `👋 ¡Hola, ${nombre}! Soy CORA 🤖\n\nPara vos tengo una misión muy específica: cuidar la cuenta de tus compensatorios 😎\n\nPreguntame “¿cuánto tengo?” cuando quieras consultar tu saldo.`,
+    `😎 ¡${nombre}! Qué milagro verte por acá.\n\nSoy CORA 🤖 y puedo decirte cuánto compensatorio tenés.\n\nProbá escribiendo “mi compensatorio”.`,
+    `🤖 CORA reportándose, ${nombre}.\n\nPrometo no pedirte que llenes ningún formulario 😂\n\nSi querés saber tu saldo, escribime “mi saldo”.`,
+    `👋 ¡Buenas, ${nombre}!\n\nYo manejo números, vos disfrutá los compensatorios 😌\n\nEscribí “cuántos días tengo” y te cuento.`,
+    `🫡 Hola, ${nombre}. CORA en servicio.\n\nMi función con vos es simple: decirte cuánto compensatorio tenés. Nada de secretos de Estado 😂\n\nPreguntame “cuánto tengo”.`
+  ];
+
+  if (["hola", "buenas", "buen dia", "buen dia cora", "hola cora", "holaa", "holaaa"].includes(textoNormalizado)) {
+    return saludos[Math.floor(Math.random() * saludos.length)];
+  }
+
+  const consultasSaldo = [
+    "mi compensatorio",
+    "mis compensatorios",
+    "mi saldo",
+    "saldo",
+    "cuanto tengo",
+    "cuanto compensatorio tengo",
+    "cuantos compensatorios tengo",
+    "cuantos dias tengo",
+    "cuanto tiempo tengo",
+    "ver mi compensatorio",
+    "ver mi saldo"
+  ];
+
+  if (consultasSaldo.includes(textoNormalizado)) {
+    const saldo = await obtenerSaldoCompensatorio(persona._id);
+    const saldoTexto = mediosDiasATexto(saldo);
+
+    const respuestas = [
+      `🕐 ${nombre}, tenés disponible:\n\n*${saldoTexto}* de compensatorio.`,
+      `📋 Cuenta rápida, ${nombre}:\n\nTu saldo actual es *${saldoTexto}*.`,
+      `🤖 Revisé mis cuentas dos veces para que después no me culpen 😂\n\n${nombre}, tenés *${saldoTexto}* de compensatorio.`,
+      `😎 ${nombre}, buenas noticias... o por lo menos información precisa:\n\nTenés *${saldoTexto}* de compensatorio.`
+    ];
+
+    return respuestas[Math.floor(Math.random() * respuestas.length)];
+  }
+
+  return (
+    `🔒 ${nombre}, esa función está disponible únicamente para administradores.\n\n` +
+    "Pero podés consultarme tu propio compensatorio escribiendo:\n" +
+    "👉 mi compensatorio\n" +
+    "👉 cuánto tengo\n" +
+    "👉 mi saldo"
+  );
+}
+
+
+// ======================================================
 // EXPORTS
 // ======================================================
 
 module.exports = {
-  procesarMensaje
+  procesarMensaje,
+  procesarMensajePersonal
 };
